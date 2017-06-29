@@ -80,13 +80,18 @@ void count(char *path, struct filecount *counts) {
 
 int main(int argc, char *argv[]) {
     struct filecount counts;
+    char *dir;
     counts.files = 0;
     counts.dirs = 0;
-    count(argv[1], &counts);
+    if(argc > 1)
+        dir = argv[1];
+    else
+        dir = ".";
+    count(dir, &counts);
 
     /* If we found nothing, this is probably an error which has already been printed */
     if(0 < counts.files || 0 < counts.dirs) {
-        printf("%s contains %ld files and %ld directories\n", argv[1], counts.files, counts.dirs);
+        printf("%s contains %ld files and %ld directories\n", dir, counts.files, counts.dirs);
     }
 
     return 0;
