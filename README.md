@@ -11,6 +11,6 @@ $ cc -Wall -pedantic -o dircnt dircnt.c
 
 ** Usage **
 
-$ dircnt dir
+$ dircnt [dir]
 
-Where 'dir' is the directory you want to scan for files.
+Where 'dir' is the directory you want to scan for files. The default dir is "." (current directory).
