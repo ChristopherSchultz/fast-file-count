@@ -5,7 +5,7 @@ Contributions welcome!
 
 ** Compiling **
 
-Using GCC, this code complies cleanly using this command:
+Using GCC or LLVM, the code complies cleanly using this command:
 
 $ cc -Wall -pedantic -o dircnt dircnt.c
 
