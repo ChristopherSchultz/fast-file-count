@@ -47,7 +47,9 @@ void count(char *path, struct filecount *counts) {
     struct stat statbuf;     /* buffer for stat() info */
 #endif
 
-/* fprintf(stderr, "Opening dir %s\n", path); */
+#ifdef DEBUG
+    fprintf(stderr, "Opening dir %s\n", path);
+#endif
     dir = opendir(path);
 
     /* opendir failed... file likely doesn't exist or isn't a directory */
@@ -64,10 +66,8 @@ void count(char *path, struct filecount *counts) {
 
 /* Use dirent.d_type if present, otherwise use stat() */
 #if defined ( _DIRENT_HAVE_D_TYPE )
-/* fprintf(stderr, "Using dirent.d_type\n"); */
       if(DT_DIR == ent->d_type) {
 #else
-/* fprintf(stderr, "Don't have dirent.d_type, falling back to using stat()\n"); */
       sprintf(subpath, "%s%c%s", path, PATH_SEPARATOR, ent->d_name);
       if(lstat(subpath, &statbuf)) {
           perror(subpath);
@@ -89,7 +89,9 @@ void count(char *path, struct filecount *counts) {
       }
     }
 
-/* fprintf(stderr, "Closing dir %s\n", path); */
+#ifdef DEBUG
+    fprintf(stderr, "Closing dir %s\n", path);
+#endif
     closedir(dir);
 }
 
@@ -102,6 +104,15 @@ int main(int argc, char *argv[]) {
         dir = argv[1];
     else
         dir = ".";
+
+#ifdef DEBUG
+#if defined ( _DIRENT_HAVE_D_TYPE )
+    fprintf(stderr, "Using dirent.d_type\n");
+#else
+    fprintf(stderr, "Don't have dirent.d_type, falling back to using stat()\n");
+#endif
+#endif
+
     count(dir, &counts);
 
     /* If we found nothing, this is probably an error which has already been printed */
