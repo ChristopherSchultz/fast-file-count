@@ -119,7 +119,7 @@ int main(int argc, char *argv[]) {
 
     /* If we found nothing, this is probably an error which has already been printed */
     if(0 < counts.files || 0 < counts.dirs) {
-        printf("%s contains %ld files and %ld directories\n", dir, counts.files, counts.dirs);
+        printf("%ld files and %ld directories in %s\n", counts.files, counts.dirs, dir);
     }
 
     return 0;
