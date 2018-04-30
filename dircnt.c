@@ -32,6 +32,31 @@ struct filecount {
   long files;
 };
 
+void count(char *path, struct filecount *counts);
+void subfunc (char *path, struct dirent *ent, struct stat *statbuf, char *subpath, struct filecount *counts);
+
+
+void subfunc (char *path, struct dirent *ent, struct stat *statbuf, char *subpath, struct filecount *counts) {
+  sprintf(subpath, "%s%c%s", path, PATH_SEPARATOR, ent->d_name);
+  if(lstat(subpath, statbuf)) {
+      perror(subpath);
+      return;
+  }
+
+  if(S_ISDIR(statbuf->st_mode)) {
+    /* Skip "." and ".." directory entries... they are not "real" directories */
+    if(0 == strcmp("..", ent->d_name) || 0 == strcmp(".", ent->d_name)) {
+/*              fprintf(stderr, "This is %s, skipping\n", ent->d_name); */
+    } else {
+        sprintf(subpath, "%s%c%s", path, PATH_SEPARATOR, ent->d_name);
+        counts->dirs++;
+        count(subpath, counts);
+    }
+  } else {
+    counts->files++;
+  }
+}
+
 /*
  * counts the number of files and directories in the specified directory.
  *
@@ -43,9 +68,9 @@ void count(char *path, struct filecount *counts) {
     struct dirent *ent;      /* directory entry currently being processed */
     char subpath[PATH_MAX];  /* buffer for building complete subdir and file names */
     /* Some systems don't have dirent.d_type field; we'll have to use stat() instead */
-#if PREFER_STAT || !defined ( _DIRENT_HAVE_D_TYPE )
+//#if PREFER_STAT || !defined ( _DIRENT_HAVE_D_TYPE )
     struct stat statbuf;     /* buffer for stat() info */
-#endif
+//#endif
 
 #ifdef DEBUG
     fprintf(stderr, "Opening dir %s\n", path);
@@ -84,6 +109,8 @@ void count(char *path, struct filecount *counts) {
               counts->dirs++;
               count(subpath, counts);
           }
+      } else if(DT_UNKNOWN == ent->d_type) { //d_type may not be always set (https://stackoverflow.com/a/29094555)
+          subfunc(path, ent, &statbuf, subpath, counts);
       } else {
           counts->files++;
       }
