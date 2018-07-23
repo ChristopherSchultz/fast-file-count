@@ -45,11 +45,13 @@ void count(char *path, struct filecount *counts) {
     struct dirent *ent;      /* directory entry currently being processed */
     char subpath[PATH_MAX];  /* buffer for building complete subdir and file names */
     /* Some systems don't have dirent.d_type field; we'll have to use stat() instead */
-#if !defined ( _DIRENT_HAVE_D_TYPE )
+#if PREFER_STAT || !defined ( _DIRENT_HAVE_D_TYPE )
     struct stat statbuf;     /* buffer for stat() info */
 #endif
 
-/* fprintf(stderr, "Opening dir %s\n", path); */
+#ifdef DEBUG
+    fprintf(stderr, "Opening dir %s\n", path);
+#endif
     dir = opendir(path);
 
     /* opendir failed... file likely doesn't exist or isn't a directory */
@@ -65,11 +67,9 @@ void count(char *path, struct filecount *counts) {
       }
 
 /* Use dirent.d_type if present, otherwise use stat() */
-#if defined ( _DIRENT_HAVE_D_TYPE )
-/* fprintf(stderr, "Using dirent.d_type\n"); */
+#if ( defined ( _DIRENT_HAVE_D_TYPE ) && !PREFER_STAT)
       if(DT_DIR == ent->d_type) {
 #else
-/* fprintf(stderr, "Don't have dirent.d_type, falling back to using stat()\n"); */
       sprintf(subpath, "%s%c%s", path, PATH_SEPARATOR, ent->d_name);
       if(lstat(subpath, &statbuf)) {
           perror(subpath);
@@ -91,7 +91,9 @@ void count(char *path, struct filecount *counts) {
       }
     }
 
-/* fprintf(stderr, "Closing dir %s\n", path); */
+#ifdef DEBUG
+    fprintf(stderr, "Closing dir %s\n", path);
+#endif
     closedir(dir);
 }
 
@@ -104,11 +106,22 @@ int main(int argc, char *argv[]) {
         dir = argv[1];
     else
         dir = ".";
+
+#ifdef DEBUG
+#if PREFER_STAT
+    fprintf(stderr, "Compiled with PREFER_STAT. Using stat()\n");
+#elif defined ( _DIRENT_HAVE_D_TYPE )
+    fprintf(stderr, "Using dirent.d_type\n");
+#else
+    fprintf(stderr, "Don't have dirent.d_type, falling back to using stat()\n");
+#endif
+#endif
+
     count(dir, &counts);
 
     /* If we found nothing, this is probably an error which has already been printed */
     if(0 < counts.files || 0 < counts.dirs) {
-        printf("%s contains %ld files and %ld directories\n", dir, counts.files, counts.dirs);
+        printf("%ld files and %ld directories in %s\n", counts.files, counts.dirs, dir);
     }
 
     return 0;
