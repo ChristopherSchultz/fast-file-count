@@ -1,10 +1,12 @@
 /**
- *
  * dircnt.c - a fast file-counting program.
  *
  * Written 2015-02-06 by Christopher Schultz as a programming demonstration
  * for a StackOverflow answer:
  * https://stackoverflow.com/questions/1427032/fast-linux-file-count-for-a-large-number-of-files/28368788#28368788
+ *
+ * This code is licensed under the Apache License 2.0. Please read the file
+ * LICENSE for more information.
  *
  * Please see the README.md file for compilation and usage instructions.
  *
