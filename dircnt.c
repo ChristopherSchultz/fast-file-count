@@ -22,16 +22,17 @@
 #include <limits.h>
 #include <sys/stat.h>
 
-#if defined(WIN32) || defined(_WIN32) 
+#if defined(WIN32) || defined(_WIN32)
 #define PATH_SEPARATOR '\\' 
 #else
-#define PATH_SEPARATOR '/' 
+#define PATH_SEPARATOR '/'
 #endif
 
 /* A custom structure to hold separate file and directory counts */
 struct filecount {
-  long dirs;
-  long files;
+    long dirs;
+    long files;
+    long feedbackLimit;
 };
 
 /*
@@ -39,6 +40,8 @@ struct filecount {
  *
  * path - relative pathname of a directory whose files should be counted
  * counts - pointer to struct containing file/dir counts
+ * feedbackLimit - allows triggering intermittent feedback without the
+ *   relatively high cost of the modulus operator.
  */
 void count(char *path, struct filecount *counts) {
     DIR *dir;                /* dir structure we are reading */
@@ -61,34 +64,43 @@ void count(char *path, struct filecount *counts) {
     }
 
     while((ent = readdir(dir))) {
-      if (strlen(path) + 1 + strlen(ent->d_name) > PATH_MAX) {
-          fprintf(stdout, "path too long (%ld) %s%c%s", (strlen(path) + 1 + strlen(ent->d_name)), path, PATH_SEPARATOR, ent->d_name);
-          return;
-      }
+        if (strlen(path) + 1 + strlen(ent->d_name) > PATH_MAX) {
+            fprintf(stdout, "path too long (%ld) %s%c%s", (strlen(path) + 1 + strlen(ent->d_name)), path, PATH_SEPARATOR, ent->d_name);
+            return;
+        }
 
 /* Use dirent.d_type if present, otherwise use stat() */
 #if ( defined ( _DIRENT_HAVE_D_TYPE ) && !PREFER_STAT)
-      if(DT_DIR == ent->d_type) {
+        if(DT_DIR == ent->d_type) {
 #else
-      sprintf(subpath, "%s%c%s", path, PATH_SEPARATOR, ent->d_name);
-      if(lstat(subpath, &statbuf)) {
-          perror(subpath);
-          return;
-      }
+        sprintf(subpath, "%s%c%s", path, PATH_SEPARATOR, ent->d_name);
+        if(lstat(subpath, &statbuf)) {
+            perror(subpath);
+            return;
+        }
 
-      if(S_ISDIR(statbuf.st_mode)) {
+        if(S_ISDIR(statbuf.st_mode)) {
 #endif
-          /* Skip "." and ".." directory entries... they are not "real" directories */
-          if(0 == strcmp("..", ent->d_name) || 0 == strcmp(".", ent->d_name)) {
+            /* Skip "." and ".." directory entries... they are not "real" directories */
+            if(0 == strcmp("..", ent->d_name) || 0 == strcmp(".", ent->d_name)) {
 /*              fprintf(stderr, "This is %s, skipping\n", ent->d_name); */
-          } else {
-              sprintf(subpath, "%s%c%s", path, PATH_SEPARATOR, ent->d_name);
-              counts->dirs++;
-              count(subpath, counts);
-          }
-      } else {
-          counts->files++;
-      }
+            } else {
+                sprintf(subpath, "%s%c%s", path, PATH_SEPARATOR, ent->d_name);
+                counts->dirs++;
+                counts->feedbackLimit++;
+                count(subpath, counts);
+            }
+        } else {
+            counts->files++;
+            counts->feedbackLimit++;
+        }
+
+        // For very large counts, give the user intermittent feedback.
+        // Because we recurse on directories, we may not land here on any specific number.
+        if(counts->feedbackLimit > 99999) {
+            printf("%ld files in %ld dirs as of path: %s\n", counts->files, counts->dirs, path);
+            counts->feedbackLimit = 0;
+        }
     }
 
 #ifdef DEBUG
@@ -102,13 +114,14 @@ int main(int argc, char *argv[]) {
     char *dir;
     counts.files = 0;
     counts.dirs = 0;
+    counts.feedbackLimit = 0;
     if(argc > 1)
         dir = argv[1];
     else
         dir = ".";
 
 #ifdef DEBUG
-#if PREFER_STAT
+    #if PREFER_STAT
     fprintf(stderr, "Compiled with PREFER_STAT. Using stat()\n");
 #elif defined ( _DIRENT_HAVE_D_TYPE )
     fprintf(stderr, "Using dirent.d_type\n");
