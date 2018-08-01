@@ -28,10 +28,12 @@
 #define PATH_SEPARATOR '/' 
 #endif
 
+#define EXIT_REACHED_LIMIT 0x01
+
 /* A custom structure to hold separate file and directory counts */
 struct filecount {
-  long dirs;
-  long files;
+  unsigned long dirs;
+  unsigned long files;
 };
 
 /*
@@ -120,6 +122,10 @@ void count(char *path, struct filecount *counts) {
           if(0 == strcmp("..", ent->d_name) || 0 == strcmp(".", ent->d_name)) {
 /*              fprintf(stderr, "This is %s, skipping\n", ent->d_name); */
           } else {
+              if(ULONG_MAX == counts->dirs) {
+                  fprintf(stderr, "Reached maximum number of directories to count (%lu) after %lu files\n", counts->dirs, counts->files);
+                  exit(EXIT_REACHED_LIMIT);
+              }
               sprintf(subpath, "%s%c%s", path, PATH_SEPARATOR, ent->d_name);
               counts->dirs++;
               count(subpath, counts);
@@ -159,7 +165,7 @@ int main(int argc, char *argv[]) {
 
     /* If we found nothing, this is probably an error which has already been printed */
     if(0 < counts.files || 0 < counts.dirs) {
-        printf("%s contains %ld files and %ld directories\n", dir, counts.files, counts.dirs);
+        printf("%s contains %lu files and %lu directories\n", dir, counts.files, counts.dirs);
     }
 
     return 0;
