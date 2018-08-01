@@ -44,10 +44,10 @@ void count(char *path, struct filecount *counts) {
     DIR *dir;                /* dir structure we are reading */
     struct dirent *ent;      /* directory entry currently being processed */
     char subpath[PATH_MAX];  /* buffer for building complete subdir and file names */
-    /* Some systems don't have dirent.d_type field; we'll have to use stat() instead */
-#if PREFER_STAT || !defined ( _DIRENT_HAVE_D_TYPE )
-    struct stat statbuf;     /* buffer for stat() info */
-#endif
+    struct stat statbuf;     /* buffer for stat() info. A call to lstat() might be
+                                required even if _DIRENT_HAVE_D_TYPE is true
+                                because ent->d_type might be DT_UNKNOWN */
+    int isdir;               /* flag for a directory entry being a directory */
 
 #ifdef DEBUG
     fprintf(stderr, "Opening dir %s\n", path);
@@ -66,9 +66,35 @@ void count(char *path, struct filecount *counts) {
           return;
       }
 
+      isdir = 0; /* reset isdir flag */
+#ifdef DEBUG
+      fprintf(stderr, "Considering %s%c%s\n", path, PATH_SEPARATOR, ent->d_name);
+#endif /* DEBUG */
+
 /* Use dirent.d_type if present, otherwise use stat() */
 #if ( defined ( _DIRENT_HAVE_D_TYPE ) && !PREFER_STAT)
-      if(DT_DIR == ent->d_type) {
+      if(DT_UNKNOWN == ent->d_type) {
+          /* Must perform lstat() anyway */
+#ifdef DEBUG
+          fprintf(stderr, "Dirent type is DT_UNKNOWN, must perform lstat()\n");
+#endif /* DEBUG */
+          sprintf(subpath, "%s%c%s", path, PATH_SEPARATOR, ent->d_name);
+          if(lstat(subpath, &statbuf)) {
+              perror(subpath);
+              return;
+          }
+          if(S_ISDIR(statbuf.st_mode)) {
+#ifdef DEBUG
+              fprintf(stderr, "Determined %s is a directory via lstat(1)\n", subpath);
+#endif /* DEBUG */
+             isdir = 1;
+          }
+      } else if(DT_DIR == ent->d_type) {
+#ifdef DEBUG
+          fprintf(stderr, "Determined %s%c%s is a directory via dirent\n", path, PATH_SEPARATOR, ent->d_name);
+#endif /* DEBUG */
+          isdir = 1;
+      }
 #else
       sprintf(subpath, "%s%c%s", path, PATH_SEPARATOR, ent->d_name);
       if(lstat(subpath, &statbuf)) {
@@ -77,7 +103,19 @@ void count(char *path, struct filecount *counts) {
       }
 
       if(S_ISDIR(statbuf.st_mode)) {
+#ifdef DEBUG
+          fprintf(stderr, "S_ISDIR=%d, mode bits=%x\n", S_ISDIR(statbuf.st_mode), statbuf.st_mode);
+          fprintf(stderr, "Determined %s is a directory via lstat(2)\n", subpath);
+#endif /* DEBUG */
+          isdir = 1;
+      }
+#endif /* if defined _DIRENT_HAVE_D_TYPE, etc. */
+
+#ifdef DEBUG
+      fprintf(stderr, "name=%s, isdir=%d\n", ent->d_name, isdir);
 #endif
+
+      if(isdir) {
           /* Skip "." and ".." directory entries... they are not "real" directories */
           if(0 == strcmp("..", ent->d_name) || 0 == strcmp(".", ent->d_name)) {
 /*              fprintf(stderr, "This is %s, skipping\n", ent->d_name); */
@@ -109,11 +147,11 @@ int main(int argc, char *argv[]) {
 
 #ifdef DEBUG
 #if PREFER_STAT
-    fprintf(stderr, "Compiled with PREFER_STAT. Using stat()\n");
+    fprintf(stderr, "Compiled with PREFER_STAT. Using lstat()\n");
 #elif defined ( _DIRENT_HAVE_D_TYPE )
     fprintf(stderr, "Using dirent.d_type\n");
 #else
-    fprintf(stderr, "Don't have dirent.d_type, falling back to using stat()\n");
+    fprintf(stderr, "Don't have dirent.d_type, falling back to using lstat()\n");
 #endif
 #endif
 
