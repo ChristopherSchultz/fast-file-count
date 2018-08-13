@@ -131,6 +131,11 @@ void count(char *path, struct filecount *counts) {
               count(subpath, counts);
           }
       } else {
+          if(ULONG_MAX == counts->files) {
+            fprintf(stderr, "Reached maximum number of files to count (%lu) after %lu directories\n", counts->files, counts->dirs);
+            exit(EXIT_REACHED_LIMIT);
+          }
+
           counts->files++;
       }
     }
