@@ -23,10 +23,15 @@
 #include <sys/stat.h>
 
 #if defined(WIN32) || defined(_WIN32)
-#define PATH_SEPARATOR '\\' 
+#define PATH_SEPARATOR '\\'
 #else
 #define PATH_SEPARATOR '/'
 #endif
+
+// FEEDBACK_INTERVAL 0 turns off feedback.
+// Low feedback intervals will impact performance. Suggest 0 or > 1000.
+// Feedback is intentionally inexact (toward code simplicity), occurring on or after each feedback interval.
+#define FEEDBACK_INTERVAL 10000
 
 /* A custom structure to hold separate file and directory counts */
 struct filecount {
@@ -95,10 +100,9 @@ void count(char *path, struct filecount *counts) {
             counts->feedbackLimit++;
         }
 
-        // For very large counts, give the user intermittent feedback.
-        // Because we recurse on directories, we may not land here on any specific number.
-        if(counts->feedbackLimit > 99999) {
-            printf("%ld files in %ld dirs as of path: %s\n", counts->files, counts->dirs, path);
+        if(FEEDBACK_INTERVAL && counts->feedbackLimit > FEEDBACK_INTERVAL) {
+            printf("In progress: %ld files and %ld directories so far.\r", counts->files, counts->dirs);
+            fflush(stdout);
             counts->feedbackLimit = 0;
         }
     }
@@ -134,7 +138,7 @@ int main(int argc, char *argv[]) {
 
     /* If we found nothing, this is probably an error which has already been printed */
     if(0 < counts.files || 0 < counts.dirs) {
-        printf("%s contains %ld files and %ld directories\n", dir, counts.files, counts.dirs);
+        printf("Complete: %s contains %ld files and %ld directories\n", dir, counts.files, counts.dirs);
     }
 
     return 0;
