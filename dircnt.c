@@ -28,6 +28,7 @@
 #define PATH_SEPARATOR '/' 
 #endif
 
+#define DIRCNT_PATH_MAX 10240
 #define EXIT_REACHED_LIMIT 0x01
 
 /* A custom structure to hold separate file and directory counts */
@@ -45,7 +46,7 @@ struct filecount {
 void count(char *path, struct filecount *counts) {
     DIR *dir;                /* dir structure we are reading */
     struct dirent *ent;      /* directory entry currently being processed */
-    char subpath[PATH_MAX];  /* buffer for building complete subdir and file names */
+    char subpath[DIRCNT_PATH_MAX];  /* buffer for building complete subdir and file names */
     struct stat statbuf;     /* buffer for stat() info. A call to lstat() might be
                                 required even if _DIRENT_HAVE_D_TYPE is true
                                 because ent->d_type might be DT_UNKNOWN */
@@ -63,7 +64,7 @@ void count(char *path, struct filecount *counts) {
     }
 
     while((ent = readdir(dir))) {
-      if (strlen(path) + 1 + strlen(ent->d_name) > PATH_MAX) {
+      if (strlen(path) + 1 + strlen(ent->d_name) > DIRCNT_PATH_MAX) {
           fprintf(stdout, "path too long (%ld) %s%c%s", (strlen(path) + 1 + strlen(ent->d_name)), path, PATH_SEPARATOR, ent->d_name);
           return;
       }
